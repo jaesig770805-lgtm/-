@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>팀 추첨기 (공개 시드 · 가중치 · 재현 가능)</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .container {
+      background: #fff;
+      border-radius: 20px;
+      padding: 28px;
+      max-width: 760px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.28);
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin: 0 0 8px;
+      font-size: 1.7em;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #666;
+      margin: 0 0 22px;
+      font-size: 0.95em;
+      line-height: 1.6;
+    }
+
+    .notice {
+      background: #f4f7ff;
+      border: 1px solid #dbe5ff;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 18px;
+      color: #334;
+      font-size: 0.93em;
+      line-height: 1.65;
+    }
+
+    .section-title {
+      font-size: 1.05em;
+      font-weight: 700;
+      color: #333;
+      margin: 24px 0 12px;
+    }
+
+    .team-list {
+      margin-bottom: 18px;
+    }
+
+    .team-row {
+      display: grid;
+      grid-template-columns: 1fr 90px 80px;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      background: #f8f9fa;
+      border-radius: 12px;
+    }
+
+    .team-name {
+      font-weight: 600;
+      color: #333;
+      word-break: keep-all;
+    }
+
+    .team-count-readonly {
+      text-align: center;
+      font-weight: 700;
+      color: #222;
+      background: #fff;
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+
+    .team-prob {
+      text-align: right;
+      color: #667eea;
+      font-weight: 700;
+    }
+
+    .seed-box {
+      background: #fafafa;
+      border: 1px solid #ececec;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 10px;
+    }
+
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #333;
+    }
+
+    textarea, input[type="text"] {
+      width: 100%;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 0.98em;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    textarea:focus, input[type="text"]:focus {
+      border-color: #667eea;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+      line-height: 1.5;
+    }
+
+    .help {
+      margin-top: 8px;
+      color: #666;
+      font-size: 0.88em;
+      line-height: 1.5;
+    }
+
+    .btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 16px;
+      font-size: 1.02em;
+      font-weight: 700;
+      color: white;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px rgba(102, 126, 234, 0.28);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn.secondary {
+      background: linear-gradient(135deg, #8e9eab 0%, #65727d 100%);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .summary-card {
+      background: #f8f9fa;
+      border-radius: 12px;
+      padding: 14px 12px;
+      text-align: center;
+    }
+
+    .summary-label {
+      color: #666;
+      font-size: 0.85em;
+      margin-bottom: 6px;
+    }
+
+    .summary-value {
+      color: #222;
+      font-size: 1.1em;
+      font-weight: 800;
+    }
+
+    .result {
+      margin-top: 22px;
+      padding: 24px;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      border-radius: 16px;
+      text-align: center;
+      display: none;
+    }
+
+    .result.show {
+      display: block;
+      animation: pop 0.35s ease;
+    }
+
+    @keyframes pop {
+      0% { transform: scale(0.96); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .result-label {
+      color: rgba(255,255,255,0.92);
+      font-size: 1em;
+      margin-bottom: 8px;
+    }
+
+    .result-team {
+      color: #fff;
+      font-size: 2em;
+      font-weight: 900;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.18);
+      margin-bottom: 12px;
+      word-break: keep-all;
+    }
+
+    .result-desc {
+      color: rgba(255,255,255,0.95);
+      font-size: 0.96em;
+      line-height: 1.7;
+    }
+
+    .verify-box {
+      background: #fcfcfc;
+      border: 1px solid #eee;
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 18px;
+    }
+
+    .verify-grid {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      gap: 8px 12px;
+      align-items: start;
+      font-size: 0.92em;
+      line-height: 1.6;
+    }
+
+    .verify-key {
+      color: #666;
+      font-weight: 700;
+    }
+
+    .verify-value {
+      color: #222;
+      word-break: break-all;
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.92em;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      color: #666;
+      font-size: 0.88em;
+      line-height: 1.7;
+    }
+
+    .copied {
+      margin-top: 8px;
+      color: #2e7d32;
+      font-size: 0.9em;
+      min-height: 1.2em;
+    }
+
+    @media (max-width: 640px) {
+      .container { padding: 20px; }
+      .team-row {
+        grid-template-columns: 1fr 72px 72px;
+        gap: 8px;
+        padding: 11px;
+      }
+      .summary {
+        grid-template-columns: 1fr;
+      }
+      .btn-row {
+        grid-template-columns: 1fr;
+      }
+      .verify-grid {
+        grid-template-columns: 1fr;
+      }
+      .result-team {
+        font-size: 1.6em;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎯 팀 추첨기</h1>
+    <p class="subtitle">
+      공개 시드(seed)와 팀 인원 정보를 기준으로 동일한 결과를 재현하는<br />
+      가중치 추첨 페이지입니다.
+    </p>
+
+    <div class="notice">
+      <strong>사용 방법</strong><br />
+      1) 카톡방에서 모두가 인정하는 공개 시드 문구를 정합니다.<br />
+      2) 아래 시드 칸에 그대로 입력합니다.<br />
+      3) <strong>결과 계산하기</strong>를 누르면 누구나 같은 결과를 확인할 수 있습니다.<br />
+      4) <strong>현재 링크 복사</strong>를 눌러 공유하면 같은 시드로 바로 검증 가능합니다.
+    </div>
+
+    <div class="section-title">팀별 인원수(공개 고정)</div>
+    <div class="team-list" id="teamList"></div>
+
+    <div class="summary">
+      <div class="summary-card">
+        <div class="summary-label">총 인원</div>
+        <div class="summary-value" id="totalCount">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">팀 수</div>
+        <div class="summary-value" id="teamCount">0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">버전</div>
+        <div class="summary-value" id="appVersion"></div>
+      </div>
+    </div>
+
+    <div class="section-title">공개 시드 입력</div>
+    <div class="seed-box">
+      <label for="seedInput">시드(seed)</label>
+      <textarea id="seedInput" placeholder="예: 2026-05-16 15:00 기준 공개 난수값 / drand round 123456 / randomness abcdef..."></textarea>
+      <div class="help">
+        같은 시드를 넣으면 누구나 같은 결과가 나옵니다.<br />
+        공정성을 위해 카톡방에서 먼저 시드 문구를 확정한 뒤 사용하세요.
+      </div>
+
+      <div class="btn-row">
+        <button class="btn" id="calcBtn">결과 계산하기</button>
+        <button class="btn secondary" id="copyBtn">현재 링크 복사</button>
+      </div>
+      <div class="copied" id="copiedMsg"></div>
+    </div>
+
+    <div class="result" id="resultBox">
+      <div class="result-label">🎉 추첨 결과</div>
+      <div class="result-team" id="resultTeam">-</div>
+      <div class="result-desc" id="resultDesc"></div>
+    </div>
+
+    <div class="verify-box" id="verifyBox" style="display:none;">
+      <div class="section-title" style="margin-top:0;">검증 정보</div>
+      <div class="verify-grid">
+        <div class="verify-key">사용 시드</div>
+        <div class="verify-value mono" id="verifySeed"></div>
+
+        <div class="verify-key">팀 데이터</div>
+        <div class="verify-value mono" id="verifyTeamData"></div>
+
+        <div class="verify-key">입력 문자열</div>
+        <div class="verify-value mono" id="verifyInput"></div>
+
+        <div class="verify-key">SHA-256 해시</div>
+        <div class="verify-value mono" id="verifyHash"></div>
+
+        <div class="verify-key">선택 번호</div>
+        <div class="verify-value" id="verifyPick"></div>
+
+        <div class="verify-key">당첨 팀</div>
+        <div class="verify-value" id="verifyWinner"></div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      ※ 이 페이지는 버튼을 누를 때마다 임의 난수를 새로 뽑지 않습니다.<br />
+      ※ <strong>같은 시드 + 같은 팀 정보 + 같은 로직</strong>이면 항상 같은 결과가 나옵니다.<br />
+      ※ GitHub Pages 같은 정적 웹페이지에서도 동일하게 동작합니다.
+    </div>
+  </div>
+
+  <script>
+    const APP_VERSION = "public-seed-v1";
+
+    // ===== 여기서 팀 이름과 인원을 확정하세요 =====
+    const teams = [
+      { name: "환경안전경영부", count: 100 },
+      { name: "대기관리1부", count: 15 },
+      { name: "대기관리2부", count: 19 },
+      { name: "유역관리부", count: 25 },
+      { name: "환경분석부", count: 20 }
+    ];
+    // ===========================================
+
+    function getTotalCount() {
+      return teams.reduce((sum, team) => sum + team.count, 0);
+    }
+
+    function getTeamDataString() {
+      // 팀 순서, 이름, 인원수까지 모두 고정 문자열화
+      // 이 문자열이 같아야 완전히 같은 결과가 납니다.
+      return teams.map(t => `${t.name}:${t.count}`).join("|");
+    }
+
+    function renderTeams() {
+      const total = getTotalCount();
+      const teamList = document.getElementById("teamList");
+      teamList.innerHTML = teams.map(team => {
+        const prob = ((team.count / total) * 100).toFixed(1);
+        return `
+          <div class="team-row">
+            <div class="team-name">${escapeHtml(team.name)}</div>
+            <div class="team-count-readonly">${team.count}명</div>
+            <div class="team-prob">${prob}%</div>
+          </div>
+        `;
+      }).join("");
+
+      document.getElementById("totalCount").textContent = `${total}명`;
+      document.getElementById("teamCount").textContent = `${teams.length}개`;
+      document.getElementById("appVersion").textContent = APP_VERSION;
+    }
+
+    function escapeHtml(text) {
+      const map = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#039;"
+      };
+      return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    async function sha256Hex(text) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(text);
+      const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    function hashHexToBigInt(hex) {
+      return BigInt("0x" + hex);
+    }
+
+    function pickWeightedWinner(numberZeroBased) {
+      let cursor = 0;
+      for (const team of teams) {
+        cursor += team.count;
+        if (numberZeroBased < cursor) {
+          return team;
+        }
+      }
+      return teams[teams.length - 1];
+    }
+
+    function setQuerySeed(seed) {
+      const url = new URL(window.location.href);
+      if (seed && seed.trim()) {
+        url.searchParams.set("seed", seed.trim());
+      } else {
+        url.searchParams.delete("seed");
+      }
+      history.replaceState(null, "", url.toString());
+    }
+
+    function getSeedFromQuery() {
+      const url = new URL(window.location.href);
+      return url.searchParams.get("seed") || "";
+    }
+
+    async function calculateResult() {
+      const seedInput = document.getElementById("seedInput");
+      const seed = seedInput.value.trim();
+
+      if (!seed) {
+        alert("공개 시드를 입력하세요.");
+        seedInput.focus();
+        return;
+      }
+
+      setQuerySeed(seed);
+
+      const total = getTotalCount();
+      const teamData = getTeamDataString();
+
+      // 핵심: 같은 입력이면 같은 결과가 나오도록
+      // 앱 버전 + 팀 데이터 + 시드를 하나의 입력 문자열로 고정
+      const canonicalInput = `version=${APP_VERSION}\nteams=${teamData}\nseed=${seed}`;
+      const hashHex = await sha256Hex(canonicalInput);
+      const hashBigInt = hashHexToBigInt(hashHex);
+      const pickedZeroBased = Number(hashBigInt % BigInt(total)); // 0 ~ total-1
+      const pickedOneBased = pickedZeroBased + 1;                 // 1 ~ total
+      const winner = pickWeightedWinner(pickedZeroBased);
+
+      document.getElementById("resultTeam").textContent = winner.name;
+      document.getElementById("resultDesc").innerHTML =
+        `총 <strong>${total}명</strong> 기준 <strong>${pickedOneBased}번</strong>이 선택되었고, ` +
+        `해당 번호 구간의 팀은 <strong>${escapeHtml(winner.name)}</strong>입니다.`;
+
+      document.getElementById("resultBox").classList.add("show");
+
+      document.getElementById("verifySeed").textContent = seed;
+      document.getElementById("verifyTeamData").textContent = teamData;
+      document.getElementById("verifyInput").textContent = canonicalInput;
+      document.getElementById("verifyHash").textContent = hashHex;
+      document.getElementById("verifyPick").textContent = `${pickedOneBased} / ${total}`;
+      document.getElementById("verifyWinner").textContent = winner.name;
+      document.getElementById("verifyBox").style.display = "block";
+    }
+
+    async function copyCurrentLink() {
+      const seed = document.getElementById("seedInput").value.trim();
+      const copiedMsg = document.getElementById("copiedMsg");
+
+      if (!seed) {
+        copiedMsg.textContent = "먼저 시드를 입력하세요.";
+        return;
+      }
+
+      setQuerySeed(seed);
+
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        copiedMsg.textContent = "현재 시드가 포함된 링크를 복사했습니다.";
+      } catch (e) {
+        copiedMsg.textContent = "링크 복사에 실패했습니다. 주소창 URL을 직접 복사해주세요.";
+      }
+    }
+
+    function loadSeedFromUrl() {
+      const seed = getSeedFromQuery();
+      if (seed) {
+        document.getElementById("seedInput").value = seed;
+      }
+    }
+
+    document.getElementById("calcBtn").addEventListener("click", calculateResult);
+    document.getElementById("copyBtn").addEventListener("click", copyCurrentLink);
+
+    renderTeams();
+    loadSeedFromUrl();
+
+    // 링크에 seed가 이미 있으면 페이지 로드 시 자동 계산
+    if (getSeedFromQuery()) {
+      calculateResult();
+    }
+  </script>
+</body>
+</html>
